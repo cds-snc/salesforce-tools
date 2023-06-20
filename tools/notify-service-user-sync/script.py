@@ -109,9 +109,7 @@ def add_contact(session, user):
         },
         headers=SF_HEADERS,
     )
-    parse_result(
-        result, f"Contact create for '{user['user_email']}'"
-    )
+    parse_result(result, f"Contact create for '{user['user_email']}'")
     return result.get("id")
 
 
@@ -138,9 +136,7 @@ def add_engagement(session, service):
         },
         headers=SF_HEADERS,
     )
-    parse_result(
-        result, f"Engagement create for service '{service['service_name']}'"
-    )
+    parse_result(result, f"Engagement create for service '{service['service_name']}'")
     engagement_id = result.get("id")
     if engagement_id:
         result = session.OpportunityLineItem.create(
@@ -189,7 +185,11 @@ def get_engagement_id(session, service):
     """
     query = f"SELECT Id, Name, ContactId, AccountId FROM Opportunity where CDS_Opportunity_Number__c = '{service['service_id']}' LIMIT 1"
     engagement = query_one(session, query)
-    return (engagement["Id"], engagement["AccountId"]) if engagement else add_engagement(session, service)
+    return (
+        (engagement["Id"], engagement["AccountId"])
+        if engagement
+        else add_engagement(session, service)
+    )
 
 
 def get_org_name_from_notes(organisation_notes, name_index):
