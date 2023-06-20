@@ -1,0 +1,48 @@
+name: Lint, format and test tools
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "tools/**"
+      - ".github/workflows/pull_request_tools.yml"
+
+jobs:
+  tools-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tool:
+          - notify-service-user-sync
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+
+      - uses: dorny/paths-filter@4512585405083f25c027a35db413c2b3b9006d50 # tag=v2.11.1
+        id: changes
+        with:
+          filters: |
+            tool:
+              - 'tools/${{ matrix.tool }}/**'
+              - '.github/workflows/pull_request_tools.yml'
+
+      - name: Setup python
+        if: steps.changes.outputs.tool == 'true'
+        uses: actions/setup-python@bd6b4b6205c4dbad673328db7b31b7fab9e241c0 # v4.6.1
+        with:
+          python-version: "3.10"
+
+      - name: Install tool dependencies
+        if: steps.changes.outputs.tool == 'true'
+        working-directory: tools/${{ matrix.tool }}
+        run: make install
+
+      - name: Lint
+        if: steps.changes.outputs.tool == 'true'
+        working-directory: tools/${{ matrix.tool }}
+        run: make lint
+
+      - name: Format
+        if: steps.changes.outputs.tool == 'true'
+        working-directory: tools/${{ matrix.tool }}
+        run: make ARGS=--check fmt

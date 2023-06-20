@@ -1,10 +1,7 @@
-# Generic Project Template
+# Salesforce tools :hammer_and_pick:
 
-This repository provides some base files for setting up a repository at
-CDS. Plan is to create more project template for specific technologies:
+A collection of tools and scripts used to manage Salesforce data.
 
-- project-template-terraform
-- project-template-python
-- project-template-nodejs
+## Tools
 
-Note that default community health files are maintained at https://github.com/cds-snc/.github 
+- [Notify service user sync](./tools/notify-service-user-sync): given a list of Notify service team members, makes sure there are matching Salesforce engagements and contact roles for each team member.
