@@ -11,10 +11,11 @@ user_id: str
 user_name: str
 user_email: str
 ```
+The expected format is shown in [`example.csv`](./example.csv).
 
 ## Running the script
 ```sh
-cp .env.example .env # and add your values
+cp .env.example .env # add your values
 make install
 make
 ```

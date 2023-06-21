@@ -46,3 +46,8 @@ jobs:
         if: steps.changes.outputs.tool == 'true'
         working-directory: tools/${{ matrix.tool }}
         run: make ARGS=--check fmt
+
+      - name: Test
+        if: steps.changes.outputs.tool == 'true'
+        working-directory: tools/${{ matrix.tool }}
+        run: make test        

@@ -10,6 +10,10 @@ install:
 lint:
 	pylint script.py
 
+test:
+	coverage run -m pytest -s -vv tests &&\
+	coverage report -m
+
 .PHONY: \
 	fmt \
 	install	\

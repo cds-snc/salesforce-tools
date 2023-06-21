@@ -25,24 +25,28 @@ from simple_salesforce import Salesforce
 logging.basicConfig(level=logging.INFO)
 load_dotenv()
 
+CSV_PATH = os.getenv("CSV_PATH")
+
 ENGAGEMENT_PRODUCT = "GC Notify"
 ENGAGEMENT_TEAM = "Platform"
 ENGAGEMENT_TYPE = "New Business"
 ENGAGEMENT_STAGE_LIVE = "Live"
 ENGAGEMENT_STAGE_TRIAL = "Trial Account"
+ENGAGEMENT_RECORD_TYPE = os.getenv("ENGAGEMENT_RECORD_TYPE")
+ENGAGEMENT_STANDARD_PRICEBOOK_ID = os.getenv("ENGAGEMENT_STANDARD_PRICEBOOK_ID")
+ENGAGEMENT_PRODUCT_ID = os.getenv("ENGAGEMENT_PRODUCT_ID")
+
+GENERIC_ACCOUNT_ID = os.getenv("GENERIC_ACCOUNT_ID")
+
+LOGIN_USERNAME = os.getenv("LOGIN_USERNAME")
+LOGIN_PASSWORD = os.getenv("LOGIN_PASSWORD")
+LOGIN_SECURITY_TOKEN = os.getenv("LOGIN_SECURITY_TOKEN")
+LOGIN_DOMAIN = os.getenv("LOGIN_DOMAIN")
 
 ORG_NOTES_ORG_NAME_INDEX = 0
 ORG_NOTES_OTHER_NAME_INDEX = 1
 
-SF_GENERIC_ACCOUNT_ID = os.getenv("SF_GENERIC_ACCOUNT_ID")
-SF_ENGAGEMENT_RECORD_TYPE = os.getenv("SF_ENGAGEMENT_RECORD_TYPE")
-SF_ENGAGEMENT_STANDARD_PRICEBOOK_ID = os.getenv("SF_ENGAGEMENT_STANDARD_PRICEBOOK_ID")
-SF_ENGAGEMENT_PRODUCT_ID = os.getenv("SF_ENGAGEMENT_PRODUCT_ID")
-SF_USERNAME = os.getenv("SF_USERNAME")
-SF_PASSWORD = os.getenv("SF_PASSWORD")
-SF_SECURITY_TOKEN = os.getenv("SF_SECURITY_TOKEN")
-SF_DOMAIN = os.getenv("SF_DOMAIN")
-SF_HEADERS = {"Sforce-Duplicate-Rule-Header": "allowSave=true"}
+REQUEST_HEADERS = {"Sforce-Duplicate-Rule-Header": "allowSave=true"}
 
 
 class TimeoutAdapter(HTTPAdapter):
@@ -59,8 +63,10 @@ def main():
     """
     Loops through the service users CSV file and creates Salesforce Contacts and Engagements
     """
-    session = get_session(SF_USERNAME, SF_PASSWORD, SF_SECURITY_TOKEN, SF_DOMAIN)
-    with open("qa-test.csv", "r", encoding="utf-8") as data:
+    session = get_session(
+        LOGIN_USERNAME, LOGIN_PASSWORD, LOGIN_SECURITY_TOKEN, LOGIN_DOMAIN
+    )
+    with open(CSV_PATH, "r", encoding="utf-8") as data:
         account_id = None
         engagement_id = None
         service_id = None
@@ -76,7 +82,7 @@ def main():
                         row["service_organisation_notes"], ORG_NOTES_ORG_NAME_INDEX
                     )
                     row["account_id"] = get_account_id_from_name(
-                        session, account_name, SF_GENERIC_ACCOUNT_ID
+                        session, account_name, GENERIC_ACCOUNT_ID
                     )
                     engagement_id, account_id = get_engagement_id(session, row)
 
@@ -107,7 +113,7 @@ def add_contact(session, user):
             "Email": user["user_email"],
             "AccountId": user["account_id"],
         },
-        headers=SF_HEADERS,
+        headers=REQUEST_HEADERS,
     )
     parse_result(result, f"Contact create for '{user['user_email']}'")
     return result.get("id")
@@ -126,7 +132,7 @@ def add_engagement(session, service):
                 service["service_organisation_notes"], ORG_NOTES_OTHER_NAME_INDEX
             ),
             "CloseDate": datetime.today().strftime("%Y-%m-%d"),
-            "RecordTypeId": SF_ENGAGEMENT_RECORD_TYPE,
+            "RecordTypeId": ENGAGEMENT_RECORD_TYPE,
             "StageName": ENGAGEMENT_STAGE_TRIAL
             if service["service_restricted"] == "true"
             else ENGAGEMENT_STAGE_LIVE,
@@ -134,7 +140,7 @@ def add_engagement(session, service):
             "CDS_Lead_Team__c": ENGAGEMENT_TEAM,
             "Product_to_Add__c": ENGAGEMENT_PRODUCT,
         },
-        headers=SF_HEADERS,
+        headers=REQUEST_HEADERS,
     )
     parse_result(result, f"Engagement create for service '{service['service_name']}'")
     engagement_id = result.get("id")
@@ -142,12 +148,12 @@ def add_engagement(session, service):
         result = session.OpportunityLineItem.create(
             {
                 "OpportunityId": engagement_id,
-                "PricebookEntryId": SF_ENGAGEMENT_STANDARD_PRICEBOOK_ID,
-                "Product2Id": SF_ENGAGEMENT_PRODUCT_ID,
+                "PricebookEntryId": ENGAGEMENT_STANDARD_PRICEBOOK_ID,
+                "Product2Id": ENGAGEMENT_PRODUCT_ID,
                 "Quantity": 1,
                 "UnitPrice": 0,
             },
-            headers=SF_HEADERS,
+            headers=REQUEST_HEADERS,
         )
         parse_result(
             result,
@@ -162,7 +168,7 @@ def add_engagement_contact_role(session, engagement_id, contact_id):
     """
     result = session.OpportunityContactRole.create(
         {"ContactId": contact_id, "OpportunityId": engagement_id},
-        headers=SF_HEADERS,
+        headers=REQUEST_HEADERS,
     )
     parse_result(
         result,
