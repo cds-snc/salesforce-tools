@@ -74,6 +74,8 @@ def main():
                         add_engagement_contact_role(
                             session, engagement["Id"], contact_id
                         )
+                else:
+                    logging.info("⏩ skipping, no Engagement found")
 
                 sleep(1)
             except Exception as ex:  # pylint: disable=broad-except
