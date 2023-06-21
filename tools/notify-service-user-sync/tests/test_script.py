@@ -4,48 +4,34 @@ from unittest.mock import call, patch, MagicMock
 
 from script import (
     add_contact,
-    add_engagement,
     add_engagement_contact_role,
     get_contact_id,
     get_engagement_contact_role,
     get_engagement_id,
-    get_org_name_from_notes,
-    get_account_id_from_name,
     get_name_parts,
     main,
     query_one,
     query_param_sanitize,
     parse_result,
-    ENGAGEMENT_PRODUCT,
-    ENGAGEMENT_PRODUCT_ID,
-    ENGAGEMENT_RECORD_TYPE,
-    ENGAGEMENT_STAGE_LIVE,
-    ENGAGEMENT_STANDARD_PRICEBOOK_ID,
-    ENGAGEMENT_TEAM,
-    ENGAGEMENT_TYPE,
     LOGIN_USERNAME,
     LOGIN_PASSWORD,
     LOGIN_SECURITY_TOKEN,
     LOGIN_DOMAIN,
-    ORG_NOTES_ORG_NAME_INDEX,
-    ORG_NOTES_OTHER_NAME_INDEX,
     REQUEST_HEADERS,
 )
 
 
 @patch("script.open")
 @patch("script.add_engagement_contact_role")
-@patch("script.get_account_id_from_name", return_value="account_id")
-@patch("script.get_contact_id", side_effect=["9", "8", "7"])
-@patch("script.get_engagement_id", side_effect=[("1", "2"), ("3", "4")])
-@patch("script.get_engagement_contact_role", side_effect=[False, False, {"Id": "9"}])
+@patch("script.get_contact_id", side_effect=["9", "8"])
+@patch("script.get_engagement_id", side_effect=[{"Id": "1", "AccountId": "2"}, None])
+@patch("script.get_engagement_contact_role", side_effect=[False, {"Id": "9"}])
 @patch("script.get_session", return_value="session")
 def test_main(
     mock_session,
     mock_get_engagement_contact_role,
     mock_get_engagement_id,
     mock_get_contact_id,
-    mock_get_account_id_from_name,
     mock_add_engagement_contact_role,
     mock_open,
 ):
@@ -59,12 +45,6 @@ def test_main(
 
     mock_session.assert_called_once_with(
         LOGIN_USERNAME, LOGIN_PASSWORD, LOGIN_SECURITY_TOKEN, LOGIN_DOMAIN
-    )
-    mock_get_account_id_from_name.assert_has_calls(
-        [
-            (("session", "Treasury Board Secretariat", "4"),),
-            (("session", "National Defence", "4"),),
-        ]
     )
     mock_get_engagement_id.assert_has_calls(
         [
@@ -91,7 +71,6 @@ def test_main(
                     "user_id": "06c1c666-e75b-4a67-9689-f42019492e62",
                     "user_name": "John Doe",
                     "user_email": "john.doe@forces.gc.ca",
-                    "account_id": "4",
                 },
             ),
         ]
@@ -124,32 +103,17 @@ def test_main(
                     "account_id": "2",
                 },
             ),
-            call(
-                "session",
-                {
-                    "service_id": "092a1718-8579-4367-a758-7cd0c566a21d",
-                    "service_name": "another name",
-                    "service_organisation_notes": "National Defence > Air Cadets",
-                    "service_restricted": "false",
-                    "user_id": "06c1c666-e75b-4a67-9689-f42019492e62",
-                    "user_name": "John Doe",
-                    "user_email": "john.doe@forces.gc.ca",
-                    "account_id": "4",
-                },
-            ),
         ]
     )
     mock_get_engagement_contact_role.assert_has_calls(
         [
             (("session", "1", "9"),),
             (("session", "1", "8"),),
-            (("session", "3", "7"),),
         ]
     )
     mock_add_engagement_contact_role.assert_has_calls(
         [
             (("session", "1", "9"),),
-            (("session", "1", "8"),),
         ]
     )
 
@@ -172,47 +136,6 @@ def test_add_contact():
             "CDS_Contact_ID__c": user["user_id"],
             "Email": user["user_email"],
             "AccountId": user["account_id"],
-        },
-        headers=REQUEST_HEADERS,
-    )
-
-
-@patch("script.datetime", return_value="1954-07-29")
-def test_add_engagement(mock_datetime):
-    mock_datetime.today.return_value = date(1954, 7, 29)
-    mock_session = MagicMock()
-    mock_session.Opportunity.create.return_value = {"id": "2", "success": True}
-    mock_session.OpportunityLineItem.create.return_value = {"success": True}
-    service = {
-        "service_name": "The Fellowship of the Ring",
-        "account_id": "42",
-        "service_id": "12345",
-        "service_organisation_notes": "Fellowship > The Hobbits",
-        "service_restricted": "false",
-    }
-    assert add_engagement(mock_session, service) == ("2", "42")
-    mock_session.Opportunity.create.assert_called_once_with(
-        {
-            "Name": service["service_name"][:120],
-            "AccountId": service["account_id"],
-            "CDS_Opportunity_Number__c": service["service_id"],
-            "Notify_Organization_Other__c": "The Hobbits",
-            "CloseDate": "1954-07-29",
-            "RecordTypeId": ENGAGEMENT_RECORD_TYPE,
-            "StageName": ENGAGEMENT_STAGE_LIVE,
-            "Type": ENGAGEMENT_TYPE,
-            "CDS_Lead_Team__c": ENGAGEMENT_TEAM,
-            "Product_to_Add__c": ENGAGEMENT_PRODUCT,
-        },
-        headers=REQUEST_HEADERS,
-    )
-    mock_session.OpportunityLineItem.create.assert_called_once_with(
-        {
-            "OpportunityId": "2",
-            "PricebookEntryId": ENGAGEMENT_STANDARD_PRICEBOOK_ID,
-            "Product2Id": ENGAGEMENT_PRODUCT_ID,
-            "Quantity": 1,
-            "UnitPrice": 0,
         },
         headers=REQUEST_HEADERS,
     )
@@ -245,7 +168,7 @@ def test_get_engagement_contact_role(mock_query_one):
 def test_get_engagement_id_existing(mock_query_one):
     mock_session = MagicMock()
     service = {"service_id": "12345"}
-    assert get_engagement_id(mock_session, service) == ("7", "8")
+    assert get_engagement_id(mock_session, service) == {"Id": "7", "AccountId": "8"}
     mock_query_one.assert_called_once_with(
         mock_session,
         "SELECT Id, Name, ContactId, AccountId FROM Opportunity where CDS_Opportunity_Number__c = '12345' LIMIT 1",
@@ -253,12 +176,10 @@ def test_get_engagement_id_existing(mock_query_one):
 
 
 @patch("script.query_one", return_value=None)
-@patch("script.add_engagement", return_value=("9", "10"))
-def test_get_engagement_id_create(mock_add_engagement, mock_query_one):
+def test_get_engagement_id_create(mock_query_one):
     mock_session = MagicMock()
     service = {"service_id": "12345"}
-    assert get_engagement_id(mock_session, service) == ("9", "10")
-    mock_add_engagement.assert_called_once_with(mock_session, service)
+    assert get_engagement_id(mock_session, service) is None
 
 
 @patch("script.query_one", return_value={"Id": "11"})
@@ -279,71 +200,6 @@ def test_get_contact_id_create(mock_add_contact, mock_query_one):
     user = {"user_id": "54321"}
     assert get_contact_id(mock_session, user) == "12"
     mock_add_contact.assert_called_once_with(mock_session, user)
-
-
-def test_get_org_name_from_notes():
-    assert (
-        get_org_name_from_notes(
-            "Account Name 1 > Service Name", ORG_NOTES_ORG_NAME_INDEX
-        )
-        == "Account Name 1"
-    )
-    assert (
-        get_org_name_from_notes(
-            "Account Name 2 > Another service Name", ORG_NOTES_ORG_NAME_INDEX
-        )
-        == "Account Name 2"
-    )
-    assert (
-        get_org_name_from_notes(
-            "Account Name 3 > Some service", ORG_NOTES_OTHER_NAME_INDEX
-        )
-        == "Some service"
-    )
-    assert (
-        get_org_name_from_notes("Account Name 4 > Service Name > Team Name", 2)
-        == "Team Name"
-    )
-    assert get_org_name_from_notes(None, 0) is None
-    assert get_org_name_from_notes(">", 0) == ""
-
-
-@patch("script.query_one", return_value={"Id": "account_id"})
-def test_get_account_id_from_name(mock_query_one):
-    mock_session = MagicMock()
-    assert (
-        get_account_id_from_name(mock_session, "Account Name", "generic_account_id")
-        == "account_id"
-    )
-    mock_query_one.assert_called_with(
-        mock_session,
-        "SELECT Id FROM Account where Name = 'Account Name' OR CDS_AccountNameFrench__c = 'Account Name' LIMIT 1",
-    )
-
-
-@patch("script.query_one", return_value=None)
-def test_get_account_id_from_name_generic(mock_query_one):
-    mock_session = MagicMock()
-    assert (
-        get_account_id_from_name(mock_session, "l'account", "generic_account_id")
-        == "generic_account_id"
-    )
-    mock_query_one.assert_called_with(
-        mock_session,
-        "SELECT Id FROM Account where Name = 'l\\'account' OR CDS_AccountNameFrench__c = 'l\\'account' LIMIT 1",
-    )
-
-
-def test_get_account_id_from_name_blank():
-    mock_session = MagicMock()
-    assert (
-        get_account_id_from_name(mock_session, "", "generic_account_id")
-        == "generic_account_id"
-    )
-    assert (
-        get_account_id_from_name(mock_session, "     ", "generic_account_id")
-        == "generic_account_id"
-    )
 
 
 def test_get_name_parts():

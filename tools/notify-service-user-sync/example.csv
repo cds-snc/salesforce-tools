@@ -1,3 +1,3 @@
-service_id,service_name,service_organisation_notes,service_restricted,user_id,user_name,user_email
-4d3185a7-f0dc-44c0-a54a-8af37640562f,some name,Treasury Board Secretariat,true,35645d50-3ff2-4777-81ea-31dc62d0c3dc,Jane Doe,jane.doe@tbs-sct.gc.ca
-092a1718-8579-4367-a758-7cd0c566a21d,another name,National Defence > Air Cadets,false,06c1c666-e75b-4a67-9689-f42019492e62,John Doe,john.doe@forces.gc.ca
+service_id,service_name,user_id,user_name,user_email
+4d3185a7-f0dc-44c0-a54a-8af37640562f,some name,35645d50-3ff2-4777-81ea-31dc62d0c3dc,Jane Doe,jane.doe@tbs-sct.gc.ca
+092a1718-8579-4367-a758-7cd0c566a21d,another name,06c1c666-e75b-4a67-9689-f42019492e62,John Doe,john.doe@forces.gc.ca
