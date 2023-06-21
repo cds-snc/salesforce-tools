@@ -1,0 +1,6 @@
+.coverage
+.env
+.pytest_cache
+*.csv
+__pycache__
+!example.csv
