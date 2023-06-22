@@ -103,6 +103,26 @@ def add_contact(session, user):
     return result.get("id")
 
 
+def update_contact(session, contact_id, user):
+    """
+    Update a Salesforce Contact with the given Notify User
+    """
+    name_parts = get_name_parts(user["user_name"])
+    result = session.Contact.update(
+        contact_id,
+        {
+            "FirstName": name_parts["first"],
+            "LastName": name_parts["last"],
+            "Title": "created by Notify API",
+            "CDS_Contact_ID__c": user["user_id"],
+            "Email": user["user_email"],
+            "AccountId": user["account_id"],
+        },
+        headers=REQUEST_HEADERS,
+    )
+    parse_result(result, f"Contact update for '{user['user_email']}'")
+
+
 def add_engagement_contact_role(session, engagement_id, contact_id):
     """
     Create a Salesforce ContactRole from the given engagement and contact IDs
@@ -136,11 +156,17 @@ def get_engagement_id(session, service):
 def get_contact_id(session, user):
     """
     Get the Salesforce Contact ID for the given Notify User.
-    If a Contact does not exist, one will be created.
+    If a Contact exists, it is updated, otherwise a new Contact is created.
     """
-    query = f"SELECT Id, FirstName, LastName, AccountId FROM Contact WHERE CDS_Contact_ID__c = '{user['user_id']}' LIMIT 1"
+    email_sanitized = query_param_sanitize(user["user_email"])
+    query = f"SELECT Id, FirstName, LastName, AccountId FROM Contact WHERE CDS_Contact_ID__c = '{user['user_id']}' OR Email = '{email_sanitized}' LIMIT 1"
     contact = query_one(session, query)
-    return contact["Id"] if contact else add_contact(session, user)
+
+    # If a contact exists, update it with the latest user data, otherwise create a new contact
+    if contact:
+        update_contact(session, contact["Id"], user)
+        return contact["Id"]
+    return add_contact(session, user)
 
 
 def get_session(username, password, security_token, domain):
