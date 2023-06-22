@@ -1,5 +1,4 @@
 # pylint: disable=import-error,line-too-long,missing-function-docstring,missing-module-docstring
-from datetime import date
 from unittest.mock import call, patch, MagicMock
 
 from script import (
@@ -13,6 +12,7 @@ from script import (
     query_one,
     query_param_sanitize,
     parse_result,
+    update_contact,
     LOGIN_USERNAME,
     LOGIN_PASSWORD,
     LOGIN_SECURITY_TOKEN,
@@ -141,6 +141,29 @@ def test_add_contact():
     )
 
 
+def test_update_contact():
+    mock_session = MagicMock()
+    user = {
+        "user_id": "user_id",
+        "user_name": "Frodo Baggins",
+        "user_email": "frodo@fellowship.org",
+        "account_id": "account_id",
+    }
+    update_contact(mock_session, "3", user)
+    mock_session.Contact.update.assert_called_once_with(
+        "3",
+        {
+            "FirstName": "Frodo",
+            "LastName": "Baggins",
+            "Title": "created by Notify API",
+            "CDS_Contact_ID__c": user["user_id"],
+            "Email": user["user_email"],
+            "AccountId": user["account_id"],
+        },
+        headers=REQUEST_HEADERS,
+    )
+
+
 def test_add_engagement_contact_role():
     mock_session = MagicMock()
     mock_session.OpportunityContactRole.create.return_value = {"success": True}
@@ -182,14 +205,16 @@ def test_get_engagement_id_create(mock_query_one):
     assert get_engagement_id(mock_session, service) is None
 
 
+@patch("script.update_contact")
 @patch("script.query_one", return_value={"Id": "11"})
-def test_get_contact_id_existing(mock_query_one):
+def test_get_contact_id_existing(mock_query_one, mock_update_contact):
     mock_session = MagicMock()
-    user = {"user_id": "54321"}
+    user = {"user_id": "54321", "user_email": "foo@bar.com"}
     assert get_contact_id(mock_session, user) == "11"
+    mock_update_contact.assert_called_once_with(mock_session, "11", user)
     mock_query_one.assert_called_once_with(
         mock_session,
-        "SELECT Id, FirstName, LastName, AccountId FROM Contact WHERE CDS_Contact_ID__c = '54321' LIMIT 1",
+        "SELECT Id, FirstName, LastName, AccountId FROM Contact WHERE CDS_Contact_ID__c = '54321' OR Email = 'foo@bar.com' LIMIT 1",
     )
 
 
@@ -197,7 +222,7 @@ def test_get_contact_id_existing(mock_query_one):
 @patch("script.add_contact", return_value="12")
 def test_get_contact_id_create(mock_add_contact, mock_query_one):
     mock_session = MagicMock()
-    user = {"user_id": "54321"}
+    user = {"user_id": "54321", "user_email": "foo@bar.com"}
     assert get_contact_id(mock_session, user) == "12"
     mock_add_contact.assert_called_once_with(mock_session, user)
 
