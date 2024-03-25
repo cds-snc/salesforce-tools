@@ -1,4 +1,4 @@
-black==23.12.1
+black==24.3.0
 coverage==7.4.4
 cryptography==42.0.5
 python-dotenv==1.0.1

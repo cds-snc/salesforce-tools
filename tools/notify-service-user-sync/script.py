@@ -7,6 +7,7 @@ It expects a CSV file with the following columns:
 - user_name: str
 - user_email: str
 """
+
 # pylint: disable=logging-fstring-interpolation,line-too-long
 
 import csv
